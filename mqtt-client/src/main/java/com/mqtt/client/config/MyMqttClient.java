@@ -18,7 +18,7 @@ public class MyMqttClient  {
 	private MemoryPersistence memoryPersistence = null;
 	private MqttConnectOptions mqttConnectOptions = null;
 
-	public void init(String clientId) {
+	public void init(String clientId) throws MqttException {
 		//初始化连接设置对象
 		mqttConnectOptions = new MqttConnectOptions();
 		//初始化MqttClient
@@ -100,9 +100,12 @@ public class MyMqttClient  {
 			System.out.println("mqttClient is null");
 		}
 	}
-	
-//	发布消息
-	public void publishMessage(String pubTopic,String message,int qos) {
+
+	/**
+	 * 	发布消息
+	 */
+	public void publishMessage(String pubTopic,String message,int qos) throws MqttException {
+		MqttDeliveryToken publish = null;
 		if(null != mqttClient&& mqttClient.isConnected()) {
 			System.out.println("发布消息   "+mqttClient.isConnected());
 			System.out.println("id:"+mqttClient.getClientId());
@@ -114,7 +117,7 @@ public class MyMqttClient  {
 			
 			if(null != topic) {
 				try {
-					MqttDeliveryToken publish = topic.publish(mqttMessage);
+					publish = topic.publish(mqttMessage);
 					if(!publish.isComplete()) {
 						System.out.println("消息发布成功");
 					}
@@ -127,9 +130,14 @@ public class MyMqttClient  {
 		}else {
 			reConnect();
 		}
+		publish.waitForCompletion();
 	}
-//	重新连接
-	public void reConnect() {
+
+
+	/**
+	 * 	重新连接
+	 */
+	public void reConnect() throws MqttException {
 		if(null != mqttClient) {
 			if(!mqttClient.isConnected()) {
 				if(null != mqttConnectOptions) {
@@ -150,22 +158,46 @@ public class MyMqttClient  {
 		}
 		
 	}
-//	订阅主题
+
+	/**
+	 * 订阅主题 此方法默认的的Qos等级为：1
+	 */
 	public void subTopic(String topic) {
-		if(null != mqttClient&& mqttClient.isConnected()) {
+		if(null != mqttClient && mqttClient.isConnected()) {
 			try {
-				mqttClient.subscribe(topic, 1);
+				mqttClient.subscribe(topic);
 			} catch (MqttException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}else {
-			System.out.println("mqttClient is error");
+			System.out.println("链接异常");
 		}
 	}
-	
-	
-//	清空主题
+
+	/**
+	 * 订阅某一个主题，可携带Qos
+	 *
+	 * @param topic 所要订阅的主题
+	 * @param qos   消息质量：0、1、2
+	 */
+	public void subTopic(String topic, int qos) throws MqttException {
+		if(null != mqttClient && mqttClient.isConnected()) {
+			try {
+				mqttClient.subscribe(topic, qos);
+			} catch (MqttException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		} else {
+			System.out.println("链接异常");
+		}
+	}
+
+
+	/**
+	 * 清空主题
+	 */
 	public void cleanTopic(String topic) {
 		if(null != mqttClient&& !mqttClient.isConnected()) {
 			try {

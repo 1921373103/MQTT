@@ -16,5 +16,7 @@ public class ServerApplication {
         SpringApplication app = new SpringApplication(ServerApplication.class);
         app.run(args);
         new BootNettyServer().startup();
+
+
     }
 }

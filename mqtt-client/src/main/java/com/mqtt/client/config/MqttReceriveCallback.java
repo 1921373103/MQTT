@@ -15,7 +15,7 @@ public class MqttReceriveCallback implements MqttCallback {
 
     @Override
     public void connectionLost(Throwable cause) {
-
+        // 通常在这里进行重连
     }
 
     @Override
@@ -29,7 +29,7 @@ public class MqttReceriveCallback implements MqttCallback {
 
     @Override
     public void deliveryComplete(IMqttDeliveryToken token) {
-
+        System.out.println("deliveryComplete---------" + token.isComplete());
     }
 
 }

@@ -1,6 +1,7 @@
 package com.mqtt.client.controller;
 
 import com.mqtt.client.config.MyMqttClient;
+import org.eclipse.paho.client.mqttv3.MqttException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,7 +27,7 @@ public class TestController {
      * @param qos 请求服务器
      */
     @GetMapping("/test/{pubTopic}/{message}/{qos}")
-    public void push(@PathVariable("pubTopic")String pubTopic, @PathVariable("message")String message, @PathVariable("qos")int qos) {
+    public void push(@PathVariable("pubTopic")String pubTopic, @PathVariable("message")String message, @PathVariable("qos")int qos) throws MqttException {
         mqttClient.publishMessage(pubTopic,message,qos);
     }
 
