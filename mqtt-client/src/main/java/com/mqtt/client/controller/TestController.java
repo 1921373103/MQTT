@@ -31,5 +31,46 @@ public class TestController {
         mqttClient.publishMessage(pubTopic,message,qos);
     }
 
+    /**
+     * 订阅主题
+     *
+     * @param topic 主题名称
+     */
+    @GetMapping("/ding/{topic}")
+    public void sub(@PathVariable("topic") String topic) throws MqttException {
+        mqttClient.subTopic(topic);
+    }
+
+    /**
+     * 订阅主题，可携带Qos
+     *
+     * @param topic 所要订阅的主题
+     * @param qos   消息质量：0、1、2
+     */
+    @GetMapping("/ding/{topic}/{qos}")
+    public void sub(@PathVariable("topic") String topic,@PathVariable("qos") int qos) throws MqttException {
+        mqttClient.subTopic(topic, qos);
+    }
+
+    /**
+     * 清空主题
+     *
+     * @param topic 主题
+     */
+    @GetMapping("/cleanTopic/{topic}")
+    public void cleanTopic(@PathVariable("topic") String topic) throws MqttException {
+        mqttClient.cleanTopic(topic);
+    }
+
+    /**
+     * 重新连接
+     *
+     * @throws MqttException
+     */
+    @GetMapping("/reConnect")
+    public void reConnect() throws MqttException {
+        mqttClient.reConnect();
+    }
+
 
 }

@@ -31,7 +31,7 @@ public class MyMqttClient  {
 			memoryPersistence = new MemoryPersistence();
 			if(null != memoryPersistence && null != clientId) {
 				try {
-					mqttClient = new MqttClient("tcp://127.0.0.1:1883", clientId,memoryPersistence);
+					mqttClient = new MqttClient("tcp://127.0.0.1:1883", clientId, memoryPersistence);
 				} catch (MqttException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -46,7 +46,7 @@ public class MyMqttClient  {
 		// System.out.println(mqttClient.isConnected());
 		//设置连接和回调
 		if(null != mqttClient) {
-			if(!mqttClient.isConnected()) {
+			if(mqttClient.isConnected()) {
 			
 //			创建回调函数对象
 				MqttReceriveCallback mqttReceriveCallback = new MqttReceriveCallback();
@@ -66,7 +66,7 @@ public class MyMqttClient  {
 			System.out.println("mqttClient为空");
 		}
 		System.out.println(mqttClient.isConnected());
-		publishMessage("123", "hello Wrold!", 1);
+		// publishMessage("123", "hello Wrold!", 1);
 	}
 	
 //	关闭连接
@@ -106,6 +106,7 @@ public class MyMqttClient  {
 	 */
 	public void publishMessage(String pubTopic,String message,int qos) throws MqttException {
 		MqttDeliveryToken publish = null;
+		reConnect();
 		if(null != mqttClient&& mqttClient.isConnected()) {
 			System.out.println("发布消息   "+mqttClient.isConnected());
 			System.out.println("id:"+mqttClient.getClientId());
@@ -118,8 +119,9 @@ public class MyMqttClient  {
 			if(null != topic) {
 				try {
 					publish = topic.publish(mqttMessage);
-					if(!publish.isComplete()) {
+					if(publish.isComplete() == false) {
 						System.out.println("消息发布成功");
+						// subTopic(pubTopic);
 					}
 				} catch (MqttException e) {
 					// TODO Auto-generated catch block
@@ -162,10 +164,12 @@ public class MyMqttClient  {
 	/**
 	 * 订阅主题 此方法默认的的Qos等级为：1
 	 */
-	public void subTopic(String topic) {
+	public void subTopic(String topic) throws MqttException {
+		reConnect();
 		if(null != mqttClient && mqttClient.isConnected()) {
 			try {
 				mqttClient.subscribe(topic);
+				System.out.println("订阅成功 = " +  topic);
 			} catch (MqttException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -182,9 +186,12 @@ public class MyMqttClient  {
 	 * @param qos   消息质量：0、1、2
 	 */
 	public void subTopic(String topic, int qos) throws MqttException {
+		reConnect();
 		if(null != mqttClient && mqttClient.isConnected()) {
 			try {
 				mqttClient.subscribe(topic, qos);
+				System.out.println("订阅成功 = " +  topic);
+				System.out.println("消息质量 = " +  qos);
 			} catch (MqttException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -194,17 +201,24 @@ public class MyMqttClient  {
 		}
 	}
 
+	/**
+	 * 消息订阅，消息侦听器
+	 */
+
 
 	/**
 	 * 清空主题
 	 */
-	public void cleanTopic(String topic) {
-		if(null != mqttClient&& !mqttClient.isConnected()) {
+	public void cleanTopic(String topic) throws MqttException {
+		reConnect();
+		if(null != mqttClient&& mqttClient.isConnected()) {
 			try {
 				mqttClient.unsubscribe(topic);
+				System.out.println("成功清空主题 = " +  topic);
 			} catch (MqttException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
+				System.out.println("清空失败 = " +  topic);
 			}
 		}else {
 			System.out.println("mqttClient is error");
