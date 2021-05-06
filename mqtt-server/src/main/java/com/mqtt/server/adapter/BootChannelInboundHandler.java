@@ -1,8 +1,7 @@
 package com.mqtt.server.adapter;
 
-
+import com.mqtt.common.util.ByteBufUtil;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
@@ -13,7 +12,6 @@ import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.util.AttributeKey;
 import io.netty.util.CharsetUtil;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -98,6 +96,28 @@ public class BootChannelInboundHandler extends ChannelInboundHandlerAdapter {
             }
         }
     }
+
+    // 服务端发布消息
+/*    private void publish(Channel channel,MqttPublishMessage mqttMessage) {
+        MqttFixedHeader mqttFixedHeader = mqttMessage.fixedHeader();
+        MqttPublishVariableHeader mqttPublishVariableHeader = mqttMessage.variableHeader();
+        ByteBuf payload = mqttMessage.payload();
+        byte[] bytes = ByteBufUtil.copyByteBuf(payload); //
+        if(mqttListener!=null){
+            mqttListener.callBack(mqttPublishVariableHeader.topicName(),new String(bytes));
+        }
+        switch (mqttFixedHeader.qosLevel()){
+            case AT_MOST_ONCE:
+                break;
+            case AT_LEAST_ONCE:
+                mqttHandlerApi.pubBackMessage(channel,mqttPublishVariableHeader.messageId());
+                break;
+            case EXACTLY_ONCE:
+                mqttProducer.pubRecMessage(channel,mqttPublishVariableHeader.messageId());
+                break;
+        }
+
+    }*/
 
     /**
      * 	从客户端收到新的数据、读取完成时调用
