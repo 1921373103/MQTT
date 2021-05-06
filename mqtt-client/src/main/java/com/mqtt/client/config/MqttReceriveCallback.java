@@ -13,7 +13,6 @@ import org.eclipse.paho.client.mqttv3.MqttMessage;
 
 public class MqttReceriveCallback implements MqttCallback {
 
-
     @SneakyThrows
     @Override
     public void connectionLost(Throwable cause) {
@@ -27,8 +26,6 @@ public class MqttReceriveCallback implements MqttCallback {
         System.out.println("Client 接收消息主题 : " + topic);
         System.out.println("Client 接收消息Qos : " + message.getQos());
         System.out.println("Client 接收消息内容 : " + new String(message.getPayload()));
-
-
     }
 
     @Override

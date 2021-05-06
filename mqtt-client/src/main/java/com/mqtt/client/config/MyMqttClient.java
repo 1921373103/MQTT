@@ -1,13 +1,7 @@
 package com.mqtt.client.config;
 
-import org.eclipse.paho.client.mqttv3.MqttClient;
-import org.eclipse.paho.client.mqttv3.MqttClientPersistence;
-import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
-import org.eclipse.paho.client.mqttv3.MqttDeliveryToken;
-import org.eclipse.paho.client.mqttv3.MqttException;
-import org.eclipse.paho.client.mqttv3.MqttMessage;
-import org.eclipse.paho.client.mqttv3.MqttPersistenceException;
-import org.eclipse.paho.client.mqttv3.MqttTopic;
+import lombok.SneakyThrows;
+import org.eclipse.paho.client.mqttv3.*;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.springframework.stereotype.Component;
 
@@ -27,6 +21,8 @@ public class MyMqttClient  {
 			mqttConnectOptions.setCleanSession(true);
 //			设置连接超时
 			mqttConnectOptions.setConnectionTimeout(30);
+			// 遗嘱消息
+			mqttConnectOptions.setWill("close","断开连接！".getBytes(),2,true);
 //			设置持久化方式
 			memoryPersistence = new MemoryPersistence();
 			if(null != memoryPersistence && null != clientId) {
@@ -46,12 +42,30 @@ public class MyMqttClient  {
 		// System.out.println(mqttClient.isConnected());
 		//设置连接和回调
 		if(null != mqttClient) {
-			if(mqttClient.isConnected()) {
+			if(!mqttClient.isConnected()) {
 			
-//			创建回调函数对象
-				MqttReceriveCallback mqttReceriveCallback = new MqttReceriveCallback();
 //			客户端添加回调函数
-				mqttClient.setCallback(mqttReceriveCallback);
+				mqttClient.setCallback(new MqttReceriveCallback()/*{
+					@SneakyThrows
+					@Override
+					public void connectionLost(Throwable cause) {
+						// 通常在这里进行重连
+						System.out.println("连接断开，重连！");
+						reConnect();
+					}
+
+					@Override
+					public void messageArrived(String topic, MqttMessage message) throws Exception {
+						System.out.println("Client 接收消息主题 : " + topic);
+						System.out.println("Client 接收消息Qos : " + message.getQos());
+						System.out.println("Client 接收消息内容 : " + new String(message.getPayload()));
+					}
+
+					@Override
+					public void deliveryComplete(IMqttDeliveryToken token) {
+						System.out.println("deliveryComplete---------" + token.isComplete());
+					}
+				}*/);
 //			创建连接
 				try {
 					System.out.println("创建连接");
@@ -115,11 +129,12 @@ public class MyMqttClient  {
 			mqttMessage.setPayload(message.getBytes());
 			
 			MqttTopic topic = mqttClient.getTopic(pubTopic);
-			
+
 			if(null != topic) {
 				try {
 					publish = topic.publish(mqttMessage);
-					if(publish.isComplete() == false) {
+					publish.waitForCompletion();
+					if(publish.isComplete()) {
 						System.out.println("消息发布成功");
 						// subTopic(pubTopic);
 					}

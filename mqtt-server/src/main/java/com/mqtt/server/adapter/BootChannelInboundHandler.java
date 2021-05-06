@@ -1,14 +1,20 @@
 package com.mqtt.server.adapter;
 
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.mqtt.*;
+import io.netty.handler.timeout.IdleState;
+import io.netty.handler.timeout.IdleStateEvent;
+import io.netty.util.AttributeKey;
+import io.netty.util.CharsetUtil;
 import lombok.extern.slf4j.Slf4j;
-
-import java.io.IOException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 
@@ -17,9 +23,9 @@ import java.io.IOException;
  * @ Date 2021/4/30 11:23
  * @ DESC
  */
+@Component
 @Slf4j
 public class BootChannelInboundHandler extends ChannelInboundHandlerAdapter {
-
 
     /**
      * 	客户端与服务端第一次建立连接时执行 在channelActive方法之前执行
@@ -105,8 +111,12 @@ public class BootChannelInboundHandler extends ChannelInboundHandlerAdapter {
      */
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        super.exceptionCaught(ctx, cause);
-        ctx.close();
+        if (cause instanceof IOException) {
+            // 远程主机强迫关闭一个现有的连接异常
+            ctx.close();
+        } else {
+            super.exceptionCaught(ctx, cause);
+        }
     }
 
     /**
@@ -126,12 +136,27 @@ public class BootChannelInboundHandler extends ChannelInboundHandlerAdapter {
     }
 
     /**
-     * 	服务端 当读超时时 会调用这个方法
+     * 	服务端 当读超时时 会调用这个方法,发送遗嘱消息
      */
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception, IOException {
-        super.userEventTriggered(ctx, evt);
-        ctx.close();
+        if (evt instanceof IdleStateEvent) {
+            IdleStateEvent idleStateEvent = (IdleStateEvent) evt;
+            if (idleStateEvent.state() == IdleState.ALL_IDLE) {
+                Channel channel = ctx.channel();
+                String clientId = (String) channel.attr(AttributeKey.valueOf("clientId")).get();
+                /*// 发送遗嘱消息
+                if (this.protocolProcess.getSessionStoreService().containsKey(clientId)) {
+                    SessionStore sessionStore = this.protocolProcess.getSessionStoreService().get(clientId);
+                    if (sessionStore.getWillMessage() != null) {
+                        this.protocolProcess.publish().processPublish(ctx.channel(), sessionStore.getWillMessage());
+                    }
+                }*/
+                ctx.close();
+            }
+        } else {
+            super.userEventTriggered(ctx, evt);
+        }
     }
 
 
@@ -139,6 +164,18 @@ public class BootChannelInboundHandler extends ChannelInboundHandlerAdapter {
     public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
         super.channelWritabilityChanged(ctx);
     }
+
+
+    public MqttPublishMessage buildPublish(String str, String topicName, Integer messageId)
+    {
+        MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(MqttMessageType.PUBLISH, false, MqttQoS.AT_LEAST_ONCE, false, str.length());
+        MqttPublishVariableHeader variableHeader = new MqttPublishVariableHeader(topicName, messageId);//("MQIsdp",3,false,false,false,0,false,false,60);
+        ByteBuf payload = Unpooled.wrappedBuffer(str.getBytes(CharsetUtil.UTF_8));
+        MqttPublishMessage msg = new MqttPublishMessage(mqttFixedHeader, variableHeader, payload);
+        return msg;
+    }
+
+
 
 
 

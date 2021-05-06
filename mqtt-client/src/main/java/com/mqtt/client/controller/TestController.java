@@ -72,5 +72,12 @@ public class TestController {
         mqttClient.reConnect();
     }
 
+    /**
+     * 断开连接
+     */
+    @GetMapping("/closeConnect")
+    public void closeConnect() {
+        mqttClient.closeConnect();
+    }
 
 }

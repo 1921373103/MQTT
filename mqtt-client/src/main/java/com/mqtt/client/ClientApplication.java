@@ -1,13 +1,9 @@
 package com.mqtt.client;
 
 import com.mqtt.client.config.MyMqttClient;
-import org.eclipse.paho.client.mqttv3.MqttDeliveryToken;
-import org.eclipse.paho.client.mqttv3.MqttException;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.ConfigurableApplicationContext;
-
-import static org.springframework.boot.SpringApplication.run;
 
 /**
  * @ Author L
@@ -16,10 +12,14 @@ import static org.springframework.boot.SpringApplication.run;
  */
 
 @SpringBootApplication
-public class ClientApplication {
+public class ClientApplication implements CommandLineRunner {
 
-    public static void main(String[] args) throws MqttException {
-        ConfigurableApplicationContext run = run(ClientApplication.class,args);
+    public static void main(String[] args) {
+        SpringApplication.run(ClientApplication.class,args);
+    }
+
+    @Override
+    public void run(String... args) throws Exception {
         new MyMqttClient().init("123");
     }
 }
