@@ -92,7 +92,8 @@ public class BootMqttMsgBack {
             default:
                 break;
         }
-        MqttPublishMessage msg = buildPublish(data, mqttPublishMessage.variableHeader().topicName(), mqttPublishMessage.variableHeader().packetId());
+        // push消息
+        buildPublish(data, mqttPublishMessage.variableHeader().topicName(), mqttPublishMessage.variableHeader().packetId());
 //        channel.writeAndFlush(msg);
     }
 
@@ -130,11 +131,14 @@ public class BootMqttMsgBack {
         for (int i = 0; i < topics.size(); i++) {
             grantedQoSLevels.add(mqttSubscribeMessage.payload().topicSubscriptions().get(i).qualityOfService().value());
         }
+        // TODO 需要优化，插入Map
         for (String topic : topics) {
+            // 遍历插入通道
             System.out.println("topic = " + topic);
             WillMeaasge willMeaasge = new WillMeaasge();
             willMeaasge.setTopic(topic);
             willMeaasge.setCtx(ctx);
+            // TODO 需要优化，UUID可能导致重复插入订阅
             ctxMap.put(IdUtil.randomUUID(),willMeaasge);
         }
         System.out.println("ctxMap = " + ctxMap);
@@ -199,30 +203,43 @@ public class BootMqttMsgBack {
             ChannelHandlerContext ctx = next.getCtx();
             ctx.writeAndFlush(msg);
         }*/
+        // 循环推送消息
         Iterator<Map.Entry<String, Object>> it = ctxMap.entrySet().iterator();
+        // 遍历所有通道
         while(it.hasNext()){
             Map.Entry<String, Object> entry = it.next();
             WillMeaasge value = (WillMeaasge)entry.getValue();
+            // 得到Map中主题名称，判断是否已订阅
             if (value.getTopic().equals(topicName)) {
+                // 获取通道
                 ChannelHandlerContext ctx = value.getCtx();
                 // ReferenceCountUtil.release(msg);
+                // 防止netty内存溢出
                 ReferenceCountUtil.retain(msg,1);
+                // 推送消息
                 ctx.writeAndFlush(msg);
             }
         }
         return msg;
     }
 
-
+    /**
+     * get/set方法
+     *
+     * @return ctx
+     */
     public static ConcurrentHashMap getCtxMap() {
         return ctxMap;
     }
-
     public static void setCtxMap(ConcurrentHashMap ctxMap) {
         BootMqttMsgBack.ctxMap = ctxMap;
     }
 
+    /**
+     * 清除ctxMap中所有数据
+     */
     public static void clearMap() {
+        // TODO 需要优化，remove掉需要去掉的数据
         ctxMap.clear();
     }
 
