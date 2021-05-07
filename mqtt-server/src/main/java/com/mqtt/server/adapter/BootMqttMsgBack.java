@@ -1,16 +1,20 @@
 package com.mqtt.server.adapter;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+import cn.hutool.core.date.DateUtil;
+import com.mqtt.server.entity.WillMeaasge;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.mqtt.*;
+import io.netty.util.AttributeKey;
 import io.netty.util.CharsetUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
@@ -21,13 +25,15 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class BootMqttMsgBack {
 
+    private static ConcurrentHashMap ctxMap = new ConcurrentHashMap<String,WillMeaasge>(1231123);
 
     /**
      * 	确认连接请求
-     * @param channel
+     * @param ctx
      * @param mqttMessage
      */
-    public static void connack (Channel channel, MqttMessage mqttMessage) {
+    public static void connack (ChannelHandlerContext ctx, MqttMessage mqttMessage) {
+        Channel channel = ctx.channel();
         MqttConnectMessage mqttConnectMessage = (MqttConnectMessage) mqttMessage;
         MqttFixedHeader mqttFixedHeaderInfo = mqttConnectMessage.fixedHeader();
         MqttConnectVariableHeader mqttConnectVariableHeaderInfo = mqttConnectMessage.variableHeader();
@@ -48,7 +54,7 @@ public class BootMqttMsgBack {
      * @param channel
      * @param mqttMessage
      */
-    public static void puback (Channel channel, MqttMessage mqttMessage) {
+    public static void publish(Channel channel, MqttMessage mqttMessage) {
         MqttPublishMessage mqttPublishMessage = (MqttPublishMessage) mqttMessage;
         MqttFixedHeader mqttFixedHeaderInfo = mqttPublishMessage.fixedHeader();
         MqttQoS qos = (MqttQoS) mqttFixedHeaderInfo.qosLevel();
@@ -82,6 +88,8 @@ public class BootMqttMsgBack {
             default:
                 break;
         }
+/*        MqttPublishMessage msg = buildPublish(data, mqttPublishMessage.variableHeader().topicName(), mqttPublishMessage.variableHeader().packetId());
+        channel.writeAndFlush(msg);*/
     }
 
     /**
@@ -89,7 +97,7 @@ public class BootMqttMsgBack {
      * @param channel
      * @param mqttMessage
      */
-    public static void pubcomp (Channel channel, MqttMessage mqttMessage) {
+    public static void pubcomp(Channel channel, MqttMessage mqttMessage) {
         MqttMessageIdVariableHeader messageIdVariableHeader = (MqttMessageIdVariableHeader) mqttMessage.variableHeader();
         //	构建返回报文， 固定报头
         MqttFixedHeader mqttFixedHeaderBack = new MqttFixedHeader(MqttMessageType.PUBCOMP,false, MqttQoS.AT_MOST_ONCE,false,0x02);
@@ -98,6 +106,8 @@ public class BootMqttMsgBack {
         MqttMessage mqttMessageBack = new MqttMessage(mqttFixedHeaderBack,mqttMessageIdVariableHeaderBack);
         log.info("back--"+mqttMessageBack.toString());
         channel.writeAndFlush(mqttMessageBack);
+//        MqttPublishMessage msg = buildPublish(mqttMessage.payload().toString(), mqttMessage , mqttMessage.variableHeader().);
+//        channel.writeAndFlush(msg);
     }
 
     /**
@@ -111,11 +121,12 @@ public class BootMqttMsgBack {
         //	构建返回报文， 可变报头
         MqttMessageIdVariableHeader variableHeaderBack = MqttMessageIdVariableHeader.from(messageIdVariableHeader.messageId());
         Set<String> topics = mqttSubscribeMessage.payload().topicSubscriptions().stream().map(mqttTopicSubscription -> mqttTopicSubscription.topicName()).collect(Collectors.toSet());
-        //log.info(topics.toString());
+        log.info(topics.toString());
         List<Integer> grantedQoSLevels = new ArrayList<>(topics.size());
         for (int i = 0; i < topics.size(); i++) {
             grantedQoSLevels.add(mqttSubscribeMessage.payload().topicSubscriptions().get(i).qualityOfService().value());
         }
+        log.info(grantedQoSLevels.toString());
         //	构建返回报文	有效负载
         MqttSubAckPayload payloadBack = new MqttSubAckPayload(grantedQoSLevels);
         //	构建返回报文	固定报头
@@ -159,14 +170,17 @@ public class BootMqttMsgBack {
     /**
      * 发送至客户端消息信息
      **/
-    public MqttPublishMessage buildPublish(String str, String topicName, Integer messageId)
+    public static MqttPublishMessage buildPublish(String str, String topicName, Integer messageId)
     {
         MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(MqttMessageType.PUBLISH, false, MqttQoS.AT_LEAST_ONCE, false, str.length());
         MqttPublishVariableHeader variableHeader = new MqttPublishVariableHeader(topicName, messageId);//("MQIsdp",3,false,false,false,0,false,false,60);
         ByteBuf payload = Unpooled.wrappedBuffer(str.getBytes(CharsetUtil.UTF_8));
         MqttPublishMessage msg = new MqttPublishMessage(mqttFixedHeader, variableHeader, payload);
+        log.info("msg--" + msg);
+
         return msg;
     }
+
 
 
 }

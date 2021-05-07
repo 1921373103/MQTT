@@ -15,14 +15,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class testController {
 
-    @Autowired
-    public BootChannelInboundHandler bootMqttMsgBack;
 
-    @GetMapping("/test")
+/*    @GetMapping("/test")
     public void test() {
         MqttPublishMessage success = bootMqttMsgBack.buildPublish("连接成功！", "success", 1);
         System.out.println("success = " + success);
-    }
+    }*/
 
 
 

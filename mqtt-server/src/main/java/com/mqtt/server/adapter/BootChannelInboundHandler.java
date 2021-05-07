@@ -1,10 +1,5 @@
 package com.mqtt.server.adapter;
 
-import com.mqtt.common.auto.MqttListener;
-import com.mqtt.common.mqtt.ClientMqttHandlerService;
-import com.mqtt.common.util.ByteBufUtil;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -12,12 +7,12 @@ import io.netty.handler.codec.mqtt.*;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.util.AttributeKey;
-import io.netty.util.CharsetUtil;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.util.Date;
 
 /**
  * @ Author L
@@ -28,10 +23,6 @@ import java.io.IOException;
 @Slf4j
 public class BootChannelInboundHandler extends ChannelInboundHandlerAdapter {
 
-    public MqttListener mqttListener;
-
-    private ClientMqttHandlerService mqttHandlerApi;
-
     /**
      * 	客户端与服务端第一次建立连接时执行 在channelActive方法之前执行
      */
@@ -41,11 +32,13 @@ public class BootChannelInboundHandler extends ChannelInboundHandlerAdapter {
     }
 
     /**
-     * 	客户端与服务端 断连时执行 channelInactive方法之后执行
+     * 	客户端与服务端第一次建立连接时执行
      */
     @Override
-    public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
-        super.channelUnregistered(ctx);
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        ctx.writeAndFlush("Welcome to " + InetAddress.getLocalHost().getHostName() + "!\r\n");
+        ctx.writeAndFlush("It is " + new Date() + " now.\r\n");
+        super.channelActive(ctx);
     }
 
     /**
@@ -62,14 +55,18 @@ public class BootChannelInboundHandler extends ChannelInboundHandlerAdapter {
             if(mqttFixedHeader.messageType().equals(MqttMessageType.CONNECT)){
                 //	在一个网络连接上，客户端只能发送一次CONNECT报文。服务端必须将客户端发送的第二个CONNECT报文当作协议违规处理并断开客户端的连接
                 //	to do 建议connect消息单独处理，用来对客户端进行认证管理等 这里直接返回一个CONNACK消息
-                BootMqttMsgBack.connack(channel, mqttMessage);
+                // BootMqttMsgBack.doConnectMessage(ctx, msg);
+                BootMqttMsgBack.connack(ctx, mqttMessage);
             }
 
             switch (mqttFixedHeader.messageType()){
+/*                case PUBACK:
+                    BootMqttMsgBack.buildPublish("123","test",2);
+                    break;*/
                 case PUBLISH:		//	客户端发布消息
                     //	PUBACK报文是对QoS 1等级的PUBLISH报文的响应
                     // System.out.println("123");
-                    BootMqttMsgBack.puback(channel, mqttMessage);
+                    BootMqttMsgBack.publish(channel, mqttMessage);
                     break;
                 case PUBREL:		//	发布释放
                     //	PUBREL报文是对PUBREC报文的响应
@@ -82,6 +79,7 @@ public class BootChannelInboundHandler extends ChannelInboundHandlerAdapter {
                     //	SUBSCRIBE报文也（为每个订阅）指定了最大的QoS等级，服务端根据这个发送应用消息给客户端
                     // 	to do
                     BootMqttMsgBack.suback(channel, mqttMessage);
+//                    BootMqttMsgBack.doSubMessage(channel, mqttMessage);
                     break;
                 case UNSUBSCRIBE:	//	客户端取消订阅
                     //	客户端发送UNSUBSCRIBE报文给服务端，用于取消订阅主题
@@ -104,55 +102,40 @@ public class BootChannelInboundHandler extends ChannelInboundHandlerAdapter {
         }
     }
 
-    // 服务端发布消息
-    private void publish(Channel channel,MqttPublishMessage mqttMessage) {
-        MqttFixedHeader mqttFixedHeader = mqttMessage.fixedHeader();
-        MqttPublishVariableHeader mqttPublishVariableHeader = mqttMessage.variableHeader();
-        ByteBuf payload = mqttMessage.payload();
-        byte[] bytes = ByteBufUtil.copyByteBuf(payload); //
-        if(mqttListener!=null){
-            mqttListener.callBack(mqttPublishVariableHeader.topicName(),new String(bytes));
-        }
-        switch (mqttFixedHeader.qosLevel()){
-            case AT_MOST_ONCE:
-                break;
-            case AT_LEAST_ONCE:
-                mqttHandlerApi.pubBackMessage(channel,mqttPublishVariableHeader.messageId());
-                break;
-            case EXACTLY_ONCE:
-                // mqttProducer.pubRecMessage(channel,mqttPublishVariableHeader.messageId());
-                break;
-        }
-
-    }
-
     /**
      * 	从客户端收到新的数据、读取完成时调用
      */
     @Override
-    public void channelReadComplete(ChannelHandlerContext ctx) throws IOException {
+    public void channelReadComplete(ChannelHandlerContext ctx) {
+        try {
+
+        } catch (Exception e) {
+            log.error("接收异常！");
+        }
+
     }
 
     /**
      * 	当出现 Throwable 对象才会被调用，即当 Netty 由于 IO 错误或者处理器在处理事件时抛出的异常时
      */
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        if (cause instanceof IOException) {
-            // 远程主机强迫关闭一个现有的连接异常
-            ctx.close();
-        } else {
-            super.exceptionCaught(ctx, cause);
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        Channel channel = ctx.channel();
+        try {
+            if (cause instanceof IOException) {
+                /*MqttPublishMessage message = BootMqttMsgBack.buildPublish("data", "close",1);
+                channel.writeAndFlush(message);*/
+                // 远程主机强迫关闭一个现有的连接异常
+                ctx.close();
+            } else {
+                super.exceptionCaught(ctx, cause);
+            }
+        } catch (Exception e) {
+            log.error("出现异常！");
         }
+
     }
 
-    /**
-     * 	客户端与服务端第一次建立连接时执行
-     */
-    @Override
-    public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        super.channelActive(ctx);
-    }
 
     /**
      * 	客户端与服务端 断连时执行
@@ -160,6 +143,14 @@ public class BootChannelInboundHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception, IOException {
         super.channelInactive(ctx);
+    }
+
+    /**
+     * 	客户端与服务端 断连时执行 channelInactive方法之后执行
+     */
+    @Override
+    public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
+        super.channelUnregistered(ctx);
     }
 
     /**
@@ -191,18 +182,6 @@ public class BootChannelInboundHandler extends ChannelInboundHandlerAdapter {
     public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
         super.channelWritabilityChanged(ctx);
     }
-
-
-    public MqttPublishMessage buildPublish(String str, String topicName, Integer messageId)
-    {
-        MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(MqttMessageType.PUBLISH, false, MqttQoS.AT_LEAST_ONCE, false, str.length());
-        MqttPublishVariableHeader variableHeader = new MqttPublishVariableHeader(topicName, messageId);//("MQIsdp",3,false,false,false,0,false,false,60);
-        ByteBuf payload = Unpooled.wrappedBuffer(str.getBytes(CharsetUtil.UTF_8));
-        MqttPublishMessage msg = new MqttPublishMessage(mqttFixedHeader, variableHeader, payload);
-        return msg;
-    }
-
-
 
 
 

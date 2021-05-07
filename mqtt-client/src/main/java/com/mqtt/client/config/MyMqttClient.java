@@ -1,9 +1,13 @@
 package com.mqtt.client.config;
 
+import io.netty.handler.codec.mqtt.MqttQoS;
 import lombok.SneakyThrows;
 import org.eclipse.paho.client.mqttv3.*;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
+
+import java.util.Collection;
 
 @Component
 public class MyMqttClient  {
@@ -21,13 +25,17 @@ public class MyMqttClient  {
 			mqttConnectOptions.setCleanSession(true);
 //			设置连接超时
 			mqttConnectOptions.setConnectionTimeout(30);
+
+			mqttConnectOptions.setUserName("root");
+			char[] c = new char[] {'S','g','j','8','0','8','6','0','6'};
+			mqttConnectOptions.setPassword(c);
 			// 遗嘱消息
-			mqttConnectOptions.setWill("close","断开连接！".getBytes(),2,true);
+			// mqttConnectOptions.setWill("close","断开连接！".getBytes(),2,true);
 //			设置持久化方式
 			memoryPersistence = new MemoryPersistence();
 			if(null != memoryPersistence && null != clientId) {
 				try {
-					mqttClient = new MqttClient("tcp://127.0.0.1:1883", clientId, memoryPersistence);
+					mqttClient = new MqttClient("tcp://192.168.0.54:1883", clientId, memoryPersistence);
 				} catch (MqttException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -149,6 +157,7 @@ public class MyMqttClient  {
 		}
 		publish.waitForCompletion();
 	}
+
 
 
 	/**

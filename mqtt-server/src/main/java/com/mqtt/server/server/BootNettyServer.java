@@ -68,18 +68,6 @@ public class BootNettyServer {
         }
     }
 
-    public void run() throws Exception {
-        serverChannel = bootstrap.bind(port).sync().channel();
-
-        serverChannel.closeFuture().addListener(new ChannelFutureListener() {
-            @Override
-            public void operationComplete(ChannelFuture future) {
-                workGroup.shutdownGracefully();
-                bossGroup.shutdownGracefully();
-            }
-        });
-    }
-
     /**
      * 关闭资源
      */
