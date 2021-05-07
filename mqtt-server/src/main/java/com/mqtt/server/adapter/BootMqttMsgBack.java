@@ -5,6 +5,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import cn.hutool.core.date.DateUtil;
+import cn.hutool.core.util.IdUtil;
 import com.mqtt.server.entity.WillMeaasge;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -13,6 +14,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.mqtt.*;
 import io.netty.util.AttributeKey;
 import io.netty.util.CharsetUtil;
+import io.netty.util.ReferenceCountUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -25,7 +27,9 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class BootMqttMsgBack {
 
-    private static ConcurrentHashMap ctxMap = new ConcurrentHashMap<String,WillMeaasge>(1231123);
+    private static ConcurrentHashMap ctxMap = new ConcurrentHashMap<String,WillMeaasge>();
+
+    private static ConcurrentHashMap map = new ConcurrentHashMap<String, Object>();
 
     /**
      * 	确认连接请求
@@ -88,8 +92,8 @@ public class BootMqttMsgBack {
             default:
                 break;
         }
-/*        MqttPublishMessage msg = buildPublish(data, mqttPublishMessage.variableHeader().topicName(), mqttPublishMessage.variableHeader().packetId());
-        channel.writeAndFlush(msg);*/
+        MqttPublishMessage msg = buildPublish(data, mqttPublishMessage.variableHeader().topicName(), mqttPublishMessage.variableHeader().packetId());
+//        channel.writeAndFlush(msg);
     }
 
     /**
@@ -112,10 +116,10 @@ public class BootMqttMsgBack {
 
     /**
      * 	订阅确认
-     * @param channel
+     * @param ctx
      * @param mqttMessage
      */
-    public static void suback(Channel channel, MqttMessage mqttMessage) {
+    public static void suback(ChannelHandlerContext ctx, MqttMessage mqttMessage) {
         MqttSubscribeMessage mqttSubscribeMessage = (MqttSubscribeMessage) mqttMessage;
         MqttMessageIdVariableHeader messageIdVariableHeader = mqttSubscribeMessage.variableHeader();
         //	构建返回报文， 可变报头
@@ -126,6 +130,14 @@ public class BootMqttMsgBack {
         for (int i = 0; i < topics.size(); i++) {
             grantedQoSLevels.add(mqttSubscribeMessage.payload().topicSubscriptions().get(i).qualityOfService().value());
         }
+        for (String topic : topics) {
+            System.out.println("topic = " + topic);
+            WillMeaasge willMeaasge = new WillMeaasge();
+            willMeaasge.setTopic(topic);
+            willMeaasge.setCtx(ctx);
+            ctxMap.put(IdUtil.randomUUID(),willMeaasge);
+        }
+        System.out.println("ctxMap = " + ctxMap);
         log.info(grantedQoSLevels.toString());
         //	构建返回报文	有效负载
         MqttSubAckPayload payloadBack = new MqttSubAckPayload(grantedQoSLevels);
@@ -134,7 +146,7 @@ public class BootMqttMsgBack {
         //	构建返回报文	订阅确认
         MqttSubAckMessage subAck = new MqttSubAckMessage(mqttFixedHeaderBack,variableHeaderBack, payloadBack);
         log.info("back--"+subAck.toString());
-        channel.writeAndFlush(subAck);
+        ctx.writeAndFlush(subAck);
     }
 
     /**
@@ -177,8 +189,41 @@ public class BootMqttMsgBack {
         ByteBuf payload = Unpooled.wrappedBuffer(str.getBytes(CharsetUtil.UTF_8));
         MqttPublishMessage msg = new MqttPublishMessage(mqttFixedHeader, variableHeader, payload);
         log.info("msg--" + msg);
-
+        /*Set set = ctxMap.entrySet();
+        Iterator iterator = set.iterator();
+        while (iterator.hasNext()){
+            Object next1 = iterator.next();
+            System.out.println("next1 = " + next1);
+            WillMeaasge next = (WillMeaasge)iterator.next();
+            System.out.println("next = " + next);
+            ChannelHandlerContext ctx = next.getCtx();
+            ctx.writeAndFlush(msg);
+        }*/
+        Iterator<Map.Entry<String, Object>> it = ctxMap.entrySet().iterator();
+        while(it.hasNext()){
+            Map.Entry<String, Object> entry = it.next();
+            WillMeaasge value = (WillMeaasge)entry.getValue();
+            if (value.getTopic().equals(topicName)) {
+                ChannelHandlerContext ctx = value.getCtx();
+                // ReferenceCountUtil.release(msg);
+                ReferenceCountUtil.retain(msg,1);
+                ctx.writeAndFlush(msg);
+            }
+        }
         return msg;
+    }
+
+
+    public static ConcurrentHashMap getCtxMap() {
+        return ctxMap;
+    }
+
+    public static void setCtxMap(ConcurrentHashMap ctxMap) {
+        BootMqttMsgBack.ctxMap = ctxMap;
+    }
+
+    public static void clearMap() {
+        ctxMap.clear();
     }
 
 
