@@ -55,7 +55,7 @@ public class BootChannelInboundHandler extends ChannelInboundHandlerAdapter {
         try {
             if (null != msg) {
                 MqttMessage mqttMessage = (MqttMessage) msg;
-                log.info("info--"+mqttMessage.toString());
+//                log.info("info--"+mqttMessage.toString());
                 MqttFixedHeader mqttFixedHeader = mqttMessage.fixedHeader();
                 Channel channel = ctx.channel();
 
@@ -64,6 +64,7 @@ public class BootChannelInboundHandler extends ChannelInboundHandlerAdapter {
                     //	to do 建议connect消息单独处理，用来对客户端进行认证管理等 这里直接返回一个CONNACK消息
                     // BootMqttMsgBack.doConnectMessage(ctx, msg);
                     BootMqttMsgBack.connack(ctx, mqttMessage);
+                    log.info("num--" + BootMqttMsgBack.atomicInteger);
                 }
 
                 switch (mqttFixedHeader.messageType()){
@@ -132,14 +133,12 @@ public class BootChannelInboundHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         try {
+            String channelId = ctx.channel().id().toString();
             if (cause instanceof IOException) {
-                WillMeaasge willMeaasge = null;
+                // 遗嘱消息
                 ConcurrentHashMap map = BootMqttMsgBack.getMap();
-                Iterator<Map.Entry<String, Object>> ito = map.entrySet().iterator();
-                while(ito.hasNext()){
-                    Map.Entry<String, Object> entry = ito.next();
-                    willMeaasge = (WillMeaasge) entry.getValue();
-                }
+                WillMeaasge willMeaasge = (WillMeaasge)map.get(channelId);
+                // 判断是否有遗嘱消息
                 if (willMeaasge != null) {
                     ConcurrentHashMap ctxMap = BootMqttMsgBack.getCtxMap();
                     Iterator<Map.Entry<String, Object>> it = ctxMap.entrySet().iterator();
@@ -149,11 +148,11 @@ public class BootChannelInboundHandler extends ChannelInboundHandlerAdapter {
                         if (value.getTopic().equals(willMeaasge.getWillTopic())) {
                             byte[] bytes = willMeaasge.getWillMessage().getBytes();
                             BootMqttMsgBack.buildPublish(new String(bytes), willMeaasge.getWillTopic(), 1);
+                            ctxMap.remove(entry.getKey());
                         }
                     }
                 }
-                /*MqttPublishMessage message = BootMqttMsgBack.buildPublish("data", "close",1);
-                channel.writeAndFlush(message);*/
+                map.remove(channelId);
                 // 远程主机强迫关闭一个现有的连接异常
                 ctx.close();
             } else {
@@ -171,7 +170,7 @@ public class BootChannelInboundHandler extends ChannelInboundHandlerAdapter {
      */
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception, IOException {
-        BootMqttMsgBack.clearMap();
+        BootMqttMsgBack.clearMap(ctx);
         super.channelInactive(ctx);
     }
 
@@ -193,13 +192,6 @@ public class BootChannelInboundHandler extends ChannelInboundHandlerAdapter {
             if (idleStateEvent.state() == IdleState.ALL_IDLE) {
                 Channel channel = ctx.channel();
                 String clientId = (String) channel.attr(AttributeKey.valueOf("clientId")).get();
-                // 发送遗嘱消息
-                /*if (this.protocolProcess.getSessionStoreService().containsKey(clientId)) {
-                    SessionStore sessionStore = this.protocolProcess.getSessionStoreService().get(clientId);
-                    if (sessionStore.getWillMessage() != null) {
-                        this.protocolProcess.publish().processPublish(ctx.channel(), sessionStore.getWillMessage());
-                    }
-                }*/
                 ctx.close();
             }
         } else {

@@ -1,2 +1,12 @@
 server:
   port: 8089
+
+#配置文件
+properties:
+  #线程池配置
+  thread:
+    pool:
+      coreSize: 16
+      maxSize: 32
+      keepAliveTime: 10
+

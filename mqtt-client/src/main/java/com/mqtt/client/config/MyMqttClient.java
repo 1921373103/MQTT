@@ -1,20 +1,15 @@
 package com.mqtt.client.config;
 
-import io.netty.handler.codec.mqtt.MqttQoS;
-import lombok.SneakyThrows;
 import org.eclipse.paho.client.mqttv3.*;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.springframework.stereotype.Component;
-import org.springframework.util.CollectionUtils;
-
-import java.util.Collection;
 
 @Component
 public class MyMqttClient  {
  
 	public MqttClient mqttClient = null;
-	private MemoryPersistence memoryPersistence = null;
-	private MqttConnectOptions mqttConnectOptions = null;
+	public MemoryPersistence memoryPersistence = null;
+	public MqttConnectOptions mqttConnectOptions = null;
 
 	public void init(String clientId) throws MqttException {
 		//初始化连接设置对象
@@ -30,12 +25,12 @@ public class MyMqttClient  {
 			//char[] c = new char[] {'S','g','j','8','0','8','6','0','6'};
 			//mqttConnectOptions.setPassword(c);
 			// 遗嘱消息
-			mqttConnectOptions.setWill("close","断开连接！".getBytes(),2,true);
+			// mqttConnectOptions.setWill("close","断开连接！".getBytes(),2,true);
 //			设置持久化方式
 			memoryPersistence = new MemoryPersistence();
 			if(null != memoryPersistence && null != clientId) {
 				try {
-					mqttClient = new MqttClient("tcp://127.0.0.1:1883", clientId, memoryPersistence);
+					mqttClient = new MqttClient("tcp://localhost:1883", clientId, memoryPersistence);
 				} catch (MqttException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -53,27 +48,7 @@ public class MyMqttClient  {
 			if(!mqttClient.isConnected()) {
 			
 //			客户端添加回调函数
-				mqttClient.setCallback(new MqttReceriveCallback()/*{
-					@SneakyThrows
-					@Override
-					public void connectionLost(Throwable cause) {
-						// 通常在这里进行重连
-						System.out.println("连接断开，重连！");
-						reConnect();
-					}
-
-					@Override
-					public void messageArrived(String topic, MqttMessage message) throws Exception {
-						System.out.println("Client 接收消息主题 : " + topic);
-						System.out.println("Client 接收消息Qos : " + message.getQos());
-						System.out.println("Client 接收消息内容 : " + new String(message.getPayload()));
-					}
-
-					@Override
-					public void deliveryComplete(IMqttDeliveryToken token) {
-						System.out.println("deliveryComplete---------" + token.isComplete());
-					}
-				}*/);
+				mqttClient.setCallback(new MqttReceriveCallback());
 //			创建连接
 				try {
 					System.out.println("创建连接");

@@ -6,6 +6,7 @@ import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
 /**
+ * 回调消息
  * @ Author L
  * @ Date 2021/4/30 13:51
  * @ DESC

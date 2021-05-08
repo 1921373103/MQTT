@@ -1,9 +1,13 @@
 package com.mqtt.client;
 
-import com.mqtt.client.config.MyMqttClient;
+import ch.qos.logback.core.net.server.Client;
+import com.mqtt.client.bootstrap.ClientTask;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+import java.util.concurrent.ThreadPoolExecutor;
 
 /**
  * @ Author L
@@ -14,12 +18,21 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class ClientApplication implements CommandLineRunner {
 
+    @Autowired
+    private ThreadPoolExecutor threadPoolExecutor;
+
+    @Autowired
+    private ClientTask clientTask;
+
     public static void main(String[] args) {
         SpringApplication.run(ClientApplication.class,args);
     }
 
     @Override
     public void run(String... args) throws Exception {
-        new MyMqttClient().init("123");
+        for (int i = 1; i <= 2; i++) {
+            threadPoolExecutor.execute(clientTask);
+        }
+
     }
 }

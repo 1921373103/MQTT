@@ -12,7 +12,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelId;
 import io.netty.handler.codec.mqtt.*;
 import io.netty.util.CharsetUtil;
 import io.netty.util.ReferenceCountUtil;
@@ -30,7 +29,10 @@ public class BootMqttMsgBack {
     private static ConcurrentHashMap ctxMap = new ConcurrentHashMap<String, CtxMessage>();
 
     // 消息遗嘱Map
-    private static ConcurrentHashMap map = new ConcurrentHashMap<String, WillMeaasge>();
+    private static ConcurrentHashMap<String, WillMeaasge> map = new ConcurrentHashMap<String, WillMeaasge>();
+
+    public static AtomicInteger atomicInteger = new AtomicInteger(0);
+
 
     /**
      * 	确认连接请求
@@ -39,6 +41,7 @@ public class BootMqttMsgBack {
      */
     public static void connack (ChannelHandlerContext ctx, MqttMessage mqttMessage) {
         Channel channel = ctx.channel();
+        String channelId = ctx.channel().id().toString();
         MqttConnectMessage mqttConnectMessage = (MqttConnectMessage) mqttMessage;
         MqttFixedHeader mqttFixedHeaderInfo = mqttConnectMessage.fixedHeader();
         MqttConnectVariableHeader mqttConnectVariableHeaderInfo = mqttConnectMessage.variableHeader();
@@ -49,9 +52,7 @@ public class BootMqttMsgBack {
             willMeaasge.setWillMessage(mqttConnectMessage.payload().willMessage());
             willMeaasge.setQos(mqttFixedHeaderInfo.qosLevel().value());
             willMeaasge.setRetain(mqttFixedHeaderInfo.isRetain());
-            map.put(mqttConnectMessage.payload().clientIdentifier(), willMeaasge);
-        } else {
-            map.remove(mqttConnectMessage.payload().clientIdentifier());
+            map.put(channelId, willMeaasge);
         }
 
         //	构建返回报文， 可变报头
@@ -60,8 +61,9 @@ public class BootMqttMsgBack {
         MqttFixedHeader mqttFixedHeaderBack = new MqttFixedHeader(MqttMessageType.CONNACK,mqttFixedHeaderInfo.isDup(), MqttQoS.AT_MOST_ONCE, mqttFixedHeaderInfo.isRetain(), 0x02);
         //	构建CONNACK消息体
         MqttConnAckMessage connAck = new MqttConnAckMessage(mqttFixedHeaderBack, mqttConnAckVariableHeaderBack);
-        log.info("back--"+connAck.toString());
+//        log.info("back--"+connAck.toString());
         channel.writeAndFlush(connAck);
+        atomicInteger.getAndIncrement();
         // buildPublish("连接成功！", "success", 1);
     }
 
@@ -77,7 +79,7 @@ public class BootMqttMsgBack {
         byte[] headBytes = new byte[mqttPublishMessage.payload().readableBytes()];
         mqttPublishMessage.payload().readBytes(headBytes);
         String data = new String(headBytes);
-        System.out.println("publish data--"+data);
+//        System.out.println("publish data--"+data);
 
         switch (qos) {
             case AT_MOST_ONCE: 		//	至多一次
@@ -89,7 +91,7 @@ public class BootMqttMsgBack {
                 MqttFixedHeader mqttFixedHeaderBack = new MqttFixedHeader(MqttMessageType.PUBACK,mqttFixedHeaderInfo.isDup(), MqttQoS.AT_MOST_ONCE, mqttFixedHeaderInfo.isRetain(), 0x02);
                 //	构建PUBACK消息体
                 MqttPubAckMessage pubAck = new MqttPubAckMessage(mqttFixedHeaderBack, mqttMessageIdVariableHeaderBack);
-                log.info("back--"+pubAck.toString());
+//                log.info("back--"+pubAck.toString());
                 channel.writeAndFlush(pubAck);
                 break;
             case EXACTLY_ONCE:		//	刚好一次
@@ -98,7 +100,7 @@ public class BootMqttMsgBack {
                 //	构建返回报文， 可变报头
                 MqttMessageIdVariableHeader mqttMessageIdVariableHeaderBack2 = MqttMessageIdVariableHeader.from(mqttPublishMessage.variableHeader().packetId());
                 MqttMessage mqttMessageBack = new MqttMessage(mqttFixedHeaderBack2,mqttMessageIdVariableHeaderBack2);
-                log.info("back--"+mqttMessageBack.toString());
+//                log.info("back--"+mqttMessageBack.toString());
                 channel.writeAndFlush(mqttMessageBack);
                 break;
             default:
@@ -120,7 +122,7 @@ public class BootMqttMsgBack {
         //	构建返回报文， 可变报头
         MqttMessageIdVariableHeader mqttMessageIdVariableHeaderBack = MqttMessageIdVariableHeader.from(messageIdVariableHeader.messageId());
         MqttMessage mqttMessageBack = new MqttMessage(mqttFixedHeaderBack,mqttMessageIdVariableHeaderBack);
-        log.info("back--"+mqttMessageBack.toString());
+//        log.info("back--"+mqttMessageBack.toString());
         channel.writeAndFlush(mqttMessageBack);
     }
 
@@ -135,7 +137,7 @@ public class BootMqttMsgBack {
         //	构建返回报文， 可变报头
         MqttMessageIdVariableHeader variableHeaderBack = MqttMessageIdVariableHeader.from(messageIdVariableHeader.messageId());
         Set<String> topics = mqttSubscribeMessage.payload().topicSubscriptions().stream().map(mqttTopicSubscription -> mqttTopicSubscription.topicName()).collect(Collectors.toSet());
-        log.info(topics.toString());
+//        log.info(topics.toString());
         List<Integer> grantedQoSLevels = new ArrayList<>(topics.size());
         for (int i = 0; i < topics.size(); i++) {
             grantedQoSLevels.add(mqttSubscribeMessage.payload().topicSubscriptions().get(i).qualityOfService().value());
@@ -149,7 +151,7 @@ public class BootMqttMsgBack {
             ctxMessage.setQos(mqttSubscribeMessage.payload().topicSubscriptions().get(0).qualityOfService().value());
             ctxMap.put(IdUtil.randomUUID(), ctxMessage);
         }
-        System.out.println("ctxMap = " + ctxMap);
+//        System.out.println("ctxMap = " + ctxMap);
         log.info(grantedQoSLevels.toString());
         //	构建返回报文	有效负载
         MqttSubAckPayload payloadBack = new MqttSubAckPayload(grantedQoSLevels);
@@ -157,7 +159,7 @@ public class BootMqttMsgBack {
         MqttFixedHeader mqttFixedHeaderBack = new MqttFixedHeader(MqttMessageType.SUBACK, false, MqttQoS.AT_MOST_ONCE, false, 2+topics.size());
         //	构建返回报文	订阅确认
         MqttSubAckMessage subAck = new MqttSubAckMessage(mqttFixedHeaderBack,variableHeaderBack, payloadBack);
-        log.info("back--"+subAck.toString());
+//        log.info("back--"+subAck.toString());
         ctx.writeAndFlush(subAck);
     }
 
@@ -177,7 +179,7 @@ public class BootMqttMsgBack {
         MqttFixedHeader mqttFixedHeaderBack = new MqttFixedHeader(MqttMessageType.UNSUBACK, false, MqttQoS.AT_MOST_ONCE, false, 2);
         //	构建返回报文	取消订阅确认
         MqttUnsubAckMessage unSubAck = new MqttUnsubAckMessage(mqttFixedHeaderBack,variableHeaderBack);
-        log.info("back--"+unSubAck.toString());
+//        log.info("back--"+unSubAck.toString());
         channel.writeAndFlush(unSubAck);
 
         // 删除对应取消订阅通道
@@ -210,7 +212,7 @@ public class BootMqttMsgBack {
         //	心跳响应报文	11010000 00000000  固定报文
         MqttFixedHeader fixedHeader = new MqttFixedHeader(MqttMessageType.PINGRESP, false, MqttQoS.AT_MOST_ONCE, false, 0);
         MqttMessage mqttMessageBack = new MqttMessage(fixedHeader);
-        log.info("back--"+mqttMessageBack.toString());
+//        log.info("back--"+mqttMessageBack.toString());
         channel.writeAndFlush(mqttMessageBack);
     }
 
@@ -223,17 +225,7 @@ public class BootMqttMsgBack {
         MqttPublishVariableHeader variableHeader = new MqttPublishVariableHeader(topicName, messageId);//("MQIsdp",3,false,false,false,0,false,false,60);
         ByteBuf payload = Unpooled.wrappedBuffer(str.getBytes(CharsetUtil.UTF_8));
         MqttPublishMessage msg = new MqttPublishMessage(mqttFixedHeader, variableHeader, payload);
-        log.info("msg--" + msg);
-        /*Set set = ctxMap.entrySet();
-        Iterator iterator = set.iterator();
-        while (iterator.hasNext()){
-            Object next1 = iterator.next();
-            System.out.println("next1 = " + next1);
-            WillMeaasge next = (WillMeaasge)iterator.next();
-            System.out.println("next = " + next);
-            ChannelHandlerContext ctx = next.getCtx();
-            ctx.writeAndFlush(msg);
-        }*/
+//        log.info("msg--" + msg);
         // 循环推送消息
         Iterator<Map.Entry<String, Object>> it = ctxMap.entrySet().iterator();
         // 遍历所有通道
@@ -276,8 +268,17 @@ public class BootMqttMsgBack {
     /**
      * 清除ctxMap中所有数据
      */
-    public static void clearMap() {
-        ctxMap.clear();
+    public static void clearMap(ChannelHandlerContext ctx) {
+        String channelId = ctx.channel().id().toString();
+        Iterator<Map.Entry<String, Object>> it = ctxMap.entrySet().iterator();
+        // 遍历所有通道
+        while(it.hasNext()) {
+            Map.Entry<String, Object> entry = it.next();
+            CtxMessage value = (CtxMessage)entry.getValue();
+            if (channelId.equals(value.getId())) {
+                ctxMap.remove(entry.getKey());
+            }
+        }
     }
 
 
