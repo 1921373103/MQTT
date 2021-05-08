@@ -2,22 +2,21 @@ package com.mqtt.server.adapter;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.IdUtil;
+import com.mqtt.server.entity.CtxMessage;
 import com.mqtt.server.entity.WillMeaasge;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelId;
 import io.netty.handler.codec.mqtt.*;
-import io.netty.util.AttributeKey;
 import io.netty.util.CharsetUtil;
 import io.netty.util.ReferenceCountUtil;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 
 /**
  * @ Author L
@@ -27,9 +26,11 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class BootMqttMsgBack {
 
-    private static ConcurrentHashMap ctxMap = new ConcurrentHashMap<String,WillMeaasge>();
+    // 消息通道Map
+    private static ConcurrentHashMap ctxMap = new ConcurrentHashMap<String, CtxMessage>();
 
-    private static ConcurrentHashMap map = new ConcurrentHashMap<String, Object>();
+    // 消息遗嘱Map
+    private static ConcurrentHashMap map = new ConcurrentHashMap<String, WillMeaasge>();
 
     /**
      * 	确认连接请求
@@ -41,6 +42,17 @@ public class BootMqttMsgBack {
         MqttConnectMessage mqttConnectMessage = (MqttConnectMessage) mqttMessage;
         MqttFixedHeader mqttFixedHeaderInfo = mqttConnectMessage.fixedHeader();
         MqttConnectVariableHeader mqttConnectVariableHeaderInfo = mqttConnectMessage.variableHeader();
+        // 判断是否有遗嘱消息
+        if (mqttConnectVariableHeaderInfo.isWillFlag()) {
+            WillMeaasge willMeaasge = new WillMeaasge();
+            willMeaasge.setWillTopic(mqttConnectMessage.payload().willTopic());
+            willMeaasge.setWillMessage(mqttConnectMessage.payload().willMessage());
+            willMeaasge.setQos(mqttFixedHeaderInfo.qosLevel().value());
+            willMeaasge.setRetain(mqttFixedHeaderInfo.isRetain());
+            map.put(mqttConnectMessage.payload().clientIdentifier(), willMeaasge);
+        } else {
+            map.remove(mqttConnectMessage.payload().clientIdentifier());
+        }
 
         //	构建返回报文， 可变报头
         MqttConnAckVariableHeader mqttConnAckVariableHeaderBack = new MqttConnAckVariableHeader(MqttConnectReturnCode.CONNECTION_ACCEPTED, mqttConnectVariableHeaderInfo.isCleanSession());
@@ -94,7 +106,6 @@ public class BootMqttMsgBack {
         }
         // push消息
         buildPublish(data, mqttPublishMessage.variableHeader().topicName(), mqttPublishMessage.variableHeader().packetId());
-//        channel.writeAndFlush(msg);
     }
 
     /**
@@ -111,8 +122,6 @@ public class BootMqttMsgBack {
         MqttMessage mqttMessageBack = new MqttMessage(mqttFixedHeaderBack,mqttMessageIdVariableHeaderBack);
         log.info("back--"+mqttMessageBack.toString());
         channel.writeAndFlush(mqttMessageBack);
-//        MqttPublishMessage msg = buildPublish(mqttMessage.payload().toString(), mqttMessage , mqttMessage.variableHeader().);
-//        channel.writeAndFlush(msg);
     }
 
     /**
@@ -131,15 +140,14 @@ public class BootMqttMsgBack {
         for (int i = 0; i < topics.size(); i++) {
             grantedQoSLevels.add(mqttSubscribeMessage.payload().topicSubscriptions().get(i).qualityOfService().value());
         }
-        // TODO 需要优化，插入Map
+        String id = ctx.pipeline().channel().id().toString();
         for (String topic : topics) {
-            // 遍历插入通道
-            System.out.println("topic = " + topic);
-            WillMeaasge willMeaasge = new WillMeaasge();
-            willMeaasge.setTopic(topic);
-            willMeaasge.setCtx(ctx);
-            // TODO 需要优化，UUID可能导致重复插入订阅
-            ctxMap.put(IdUtil.randomUUID(),willMeaasge);
+            CtxMessage ctxMessage = new CtxMessage();
+            ctxMessage.setId(id);
+            ctxMessage.setTopic(topic);
+            ctxMessage.setCtx(ctx);
+            ctxMessage.setQos(mqttSubscribeMessage.payload().topicSubscriptions().get(0).qualityOfService().value());
+            ctxMap.put(IdUtil.randomUUID(), ctxMessage);
         }
         System.out.println("ctxMap = " + ctxMap);
         log.info(grantedQoSLevels.toString());
@@ -159,6 +167,9 @@ public class BootMqttMsgBack {
      * @param mqttMessage
      */
     public static void unsuback(Channel channel, MqttMessage mqttMessage) {
+        // 获取消息体
+        MqttUnsubscribePayload mqttUnsubscribePayload = (MqttUnsubscribePayload) mqttMessage.payload();
+
         MqttMessageIdVariableHeader messageIdVariableHeader = (MqttMessageIdVariableHeader) mqttMessage.variableHeader();
         //	构建返回报文	可变报头
         MqttMessageIdVariableHeader variableHeaderBack = MqttMessageIdVariableHeader.from(messageIdVariableHeader.messageId());
@@ -168,6 +179,26 @@ public class BootMqttMsgBack {
         MqttUnsubAckMessage unSubAck = new MqttUnsubAckMessage(mqttFixedHeaderBack,variableHeaderBack);
         log.info("back--"+unSubAck.toString());
         channel.writeAndFlush(unSubAck);
+
+        // 删除对应取消订阅通道
+        String channelId = channel.id().toString();
+        // 获取主题列表
+        AtomicInteger num = new AtomicInteger(mqttUnsubscribePayload.topics().size());
+        // 遍历要取消订阅的主题
+        for (String topic : mqttUnsubscribePayload.topics()) {
+            // 迭代ctxMap
+            Iterator<Map.Entry<String, Object>> it = ctxMap.entrySet().iterator();
+            while(it.hasNext()) {
+                Map.Entry<String, Object> entry = it.next();
+                CtxMessage value = (CtxMessage) entry.getValue();
+                if (num.get() > 0 && channelId.equals(value.getId()) && topic.equals(value.getTopic())){
+                    // 删除对应ctx通道
+                    ctxMap.remove(entry.getKey());
+                    num.decrementAndGet();
+                }
+            }
+
+        }
     }
 
     /**
@@ -208,7 +239,7 @@ public class BootMqttMsgBack {
         // 遍历所有通道
         while(it.hasNext()){
             Map.Entry<String, Object> entry = it.next();
-            WillMeaasge value = (WillMeaasge)entry.getValue();
+            CtxMessage value = (CtxMessage)entry.getValue();
             // 得到Map中主题名称，判断是否已订阅
             if (value.getTopic().equals(topicName)) {
                 // 获取通道
@@ -235,14 +266,19 @@ public class BootMqttMsgBack {
         BootMqttMsgBack.ctxMap = ctxMap;
     }
 
+    public static ConcurrentHashMap getMap() {
+        return map;
+    }
+    public static void setMap(ConcurrentHashMap map) {
+        BootMqttMsgBack.map = map;
+    }
+
     /**
      * 清除ctxMap中所有数据
      */
     public static void clearMap() {
-        // TODO 需要优化，remove掉需要去掉的数据
         ctxMap.clear();
     }
-
 
 
 }

@@ -1,5 +1,6 @@
 package com.mqtt.server.adapter;
 
+import com.mqtt.server.entity.CtxMessage;
 import com.mqtt.server.entity.WillMeaasge;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
@@ -132,13 +133,23 @@ public class BootChannelInboundHandler extends ChannelInboundHandlerAdapter {
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         try {
             if (cause instanceof IOException) {
-                ConcurrentHashMap ctxMap = BootMqttMsgBack.getCtxMap();
-                Iterator<Map.Entry<String, Object>> it = ctxMap.entrySet().iterator();
-                while(it.hasNext()){
-                    Map.Entry<String, Object> entry = it.next();
-                    WillMeaasge value = (WillMeaasge)entry.getValue();
-                    if (value.getTopic().equals("close")) {
-                        BootMqttMsgBack.buildPublish("断开连接", "close",1);
+                WillMeaasge willMeaasge = null;
+                ConcurrentHashMap map = BootMqttMsgBack.getMap();
+                Iterator<Map.Entry<String, Object>> ito = map.entrySet().iterator();
+                while(ito.hasNext()){
+                    Map.Entry<String, Object> entry = ito.next();
+                    willMeaasge = (WillMeaasge) entry.getValue();
+                }
+                if (willMeaasge != null) {
+                    ConcurrentHashMap ctxMap = BootMqttMsgBack.getCtxMap();
+                    Iterator<Map.Entry<String, Object>> it = ctxMap.entrySet().iterator();
+                    while (it.hasNext()) {
+                        Map.Entry<String, Object> entry = it.next();
+                        CtxMessage value = (CtxMessage) entry.getValue();
+                        if (value.getTopic().equals(willMeaasge.getWillTopic())) {
+                            byte[] bytes = willMeaasge.getWillMessage().getBytes();
+                            BootMqttMsgBack.buildPublish(new String(bytes), willMeaasge.getWillTopic(), 1);
+                        }
                     }
                 }
                 /*MqttPublishMessage message = BootMqttMsgBack.buildPublish("data", "close",1);
@@ -182,8 +193,8 @@ public class BootChannelInboundHandler extends ChannelInboundHandlerAdapter {
             if (idleStateEvent.state() == IdleState.ALL_IDLE) {
                 Channel channel = ctx.channel();
                 String clientId = (String) channel.attr(AttributeKey.valueOf("clientId")).get();
-                /*// 发送遗嘱消息
-                if (this.protocolProcess.getSessionStoreService().containsKey(clientId)) {
+                // 发送遗嘱消息
+                /*if (this.protocolProcess.getSessionStoreService().containsKey(clientId)) {
                     SessionStore sessionStore = this.protocolProcess.getSessionStoreService().get(clientId);
                     if (sessionStore.getWillMessage() != null) {
                         this.protocolProcess.publish().processPublish(ctx.channel(), sessionStore.getWillMessage());

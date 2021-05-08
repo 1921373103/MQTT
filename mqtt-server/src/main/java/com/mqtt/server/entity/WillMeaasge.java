@@ -1,25 +1,22 @@
 package com.mqtt.server.entity;
 
-import io.netty.channel.ChannelHandlerContext;
 import lombok.Data;
 
 /**
- * @ Author L
- * @ Date 2021/5/7 17:47
- * @ DESC
+ * 遗嘱消息
+ *
+ * @author L
+ * @create 2021-05-08
  */
 @Data
 public class WillMeaasge {
 
-    public String Topic;
+    private String willTopic;
 
-    public ChannelHandlerContext ctx;
+    private String willMessage;
 
-    public String getTopic() {
-        return Topic;
-    }
+    private  boolean isRetain;
 
-    public void setTopic(String topic) {
-        Topic = topic;
-    }
+    private int qos;
+
 }
