@@ -2,6 +2,7 @@ package com.mqtt.client;
 
 import ch.qos.logback.core.net.server.Client;
 import com.mqtt.client.bootstrap.ClientTask;
+import com.mqtt.client.config.MyMqttClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -30,9 +31,10 @@ public class ClientApplication implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        for (int i = 1; i <= 2; i++) {
+        for (int i = 1; i <= 1; i++) {
+            Thread.sleep(400);
             threadPoolExecutor.execute(clientTask);
         }
-
+        System.out.println("MyMqttClient.atomicInteger = " + MyMqttClient.atomicInteger);
     }
 }

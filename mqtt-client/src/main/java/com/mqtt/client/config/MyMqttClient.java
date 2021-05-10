@@ -4,9 +4,20 @@ import org.eclipse.paho.client.mqttv3.*;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.springframework.stereotype.Component;
 
+import java.util.Iterator;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+
 @Component
 public class MyMqttClient  {
- 
+
+	public ConcurrentHashMap<String, MqttClient> map = new ConcurrentHashMap<String, MqttClient>();
+
+	public static AtomicInteger atomicInteger = new AtomicInteger(0);
+
+	public static AtomicInteger subNum = new AtomicInteger(0);
+
 	public MqttClient mqttClient = null;
 	public MemoryPersistence memoryPersistence = null;
 	public MqttConnectOptions mqttConnectOptions = null;
@@ -16,11 +27,14 @@ public class MyMqttClient  {
 		mqttConnectOptions = new MqttConnectOptions();
 		//初始化MqttClient
 		if(null != mqttConnectOptions) {
-//			true可以安全地使用内存持久性作为客户端断开连接时清除的所有状态
+			// true可以安全地使用内存持久性作为客户端断开连接时清除的所有状态
 			mqttConnectOptions.setCleanSession(true);
-//			设置连接超时
+			// 设置连接超时
 			mqttConnectOptions.setConnectionTimeout(30);
-
+			// 设置并发数量
+			mqttConnectOptions.setMaxInflight(50);
+			// 心跳
+			mqttConnectOptions.setKeepAliveInterval(60);
 			//mqttConnectOptions.setUserName("root");
 			//char[] c = new char[] {'S','g','j','8','0','8','6','0','6'};
 			//mqttConnectOptions.setPassword(c);
@@ -31,41 +45,44 @@ public class MyMqttClient  {
 			if(null != memoryPersistence && null != clientId) {
 				try {
 					mqttClient = new MqttClient("tcp://localhost:1883", clientId, memoryPersistence);
+					System.out.println("mqttClient = " + mqttClient);
+					map.put(clientId,mqttClient);
 				} catch (MqttException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			}else {
-				
+
 			}
 		}else {
 			System.out.println("mqttConnectOptions对象为空");
 		}
-		
+
 		// System.out.println(mqttClient.isConnected());
 		//设置连接和回调
 		if(null != mqttClient) {
 			if(!mqttClient.isConnected()) {
-			
+
 //			客户端添加回调函数
 				mqttClient.setCallback(new MqttReceriveCallback());
 //			创建连接
 				try {
-					System.out.println("创建连接");
+//					System.out.println("创建连接");
 					mqttClient.connect(mqttConnectOptions);
 				} catch (MqttException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-			
+
 			}
 		}else {
 			System.out.println("mqttClient为空");
 		}
-		System.out.println(mqttClient.isConnected());
+		atomicInteger.getAndIncrement();
+//		System.out.println(mqttClient.isConnected());
 		// publishMessage("123", "hello Wrold!", 1);
 	}
-	
+
 //	关闭连接
 	public void closeConnect() {
 		//关闭存储方式
@@ -79,7 +96,7 @@ public class MyMqttClient  {
 		}else {
 			System.out.println("memoryPersistence is null");
 		}
-		
+
 //		关闭连接
 		if(null != mqttClient) {
 			if(mqttClient.isConnected()) {
@@ -110,7 +127,7 @@ public class MyMqttClient  {
 			MqttMessage mqttMessage = new MqttMessage();
 			mqttMessage.setQos(qos);
 			mqttMessage.setPayload(message.getBytes());
-			
+
 			MqttTopic topic = mqttClient.getTopic(pubTopic);
 
 			if(null != topic) {
@@ -119,14 +136,14 @@ public class MyMqttClient  {
 					publish.waitForCompletion();
 					if(publish.isComplete()) {
 						System.out.println("消息发布成功");
-						// subTopic(pubTopic);
+						System.out.println("收到消息 = " + MqttReceriveCallback.atomicInteger);
 					}
 				} catch (MqttException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			}
-			
+
 		}else {
 			reConnect();
 		}
@@ -157,7 +174,7 @@ public class MyMqttClient  {
 		}else {
 			init("123");
 		}
-		
+
 	}
 
 	/**
@@ -167,8 +184,14 @@ public class MyMqttClient  {
 		reConnect();
 		if(null != mqttClient && mqttClient.isConnected()) {
 			try {
-				mqttClient.subscribe(topic);
-				System.out.println("订阅成功 = " +  topic);
+				Iterator<Map.Entry<String, MqttClient>> it = map.entrySet().iterator();
+				while(it.hasNext()) {
+					Map.Entry<String, MqttClient> entry = it.next();
+					MqttClient value = entry.getValue();
+					value.subscribe(topic);
+					subNum.getAndIncrement();
+				}
+				System.out.println("订阅成功 = " +  topic + "num = " + subNum);
 			} catch (MqttException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -188,8 +211,15 @@ public class MyMqttClient  {
 		reConnect();
 		if(null != mqttClient && mqttClient.isConnected()) {
 			try {
-				mqttClient.subscribe(topic, qos);
+				Iterator<Map.Entry<String, MqttClient>> it = map.entrySet().iterator();
+				while(it.hasNext()) {
+					Map.Entry<String, MqttClient> entry = it.next();
+					MqttClient value = entry.getValue();
+					value.subscribe(topic, qos);
+					subNum.getAndIncrement();
+				}
 				System.out.println("订阅成功 = " +  topic);
+				System.out.println("num = " +  subNum);
 				System.out.println("消息质量 = " +  qos);
 			} catch (MqttException e) {
 				// TODO Auto-generated catch block
@@ -223,5 +253,5 @@ public class MyMqttClient  {
 			System.out.println("mqttClient is error");
 		}
 	}
- 
+
 }

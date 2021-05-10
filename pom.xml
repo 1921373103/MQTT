@@ -7,6 +7,7 @@
         <module>mqtt-server</module>
         <module>mqtt-client</module>
         <module>mqtt-common</module>
+        <module>mqtt-client-tow</module>
     </modules>
     <parent>
         <groupId>org.springframework.boot</groupId>

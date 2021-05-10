@@ -5,6 +5,8 @@ import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 /**
  * 回调消息
  * @ Author L
@@ -13,6 +15,8 @@ import org.eclipse.paho.client.mqttv3.MqttMessage;
  */
 
 public class MqttReceriveCallback implements MqttCallback {
+
+    public static AtomicInteger atomicInteger = new AtomicInteger(0);
 
     @SneakyThrows
     @Override
@@ -24,9 +28,10 @@ public class MqttReceriveCallback implements MqttCallback {
 
     @Override
     public void messageArrived(String topic, MqttMessage message) throws Exception {
-        System.out.println("Client 接收消息主题 : " + topic);
+        /*System.out.println("Client 接收消息主题 : " + topic);
         System.out.println("Client 接收消息Qos : " + message.getQos());
-        System.out.println("Client 接收消息内容 : " + new String(message.getPayload()));
+        System.out.println("Client 接收消息内容 : " + new String(message.getPayload()));*/
+        atomicInteger.getAndIncrement();
     }
 
     @Override
