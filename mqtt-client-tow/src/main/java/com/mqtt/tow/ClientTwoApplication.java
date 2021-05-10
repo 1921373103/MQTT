@@ -1,6 +1,5 @@
 package com.mqtt.tow;
 
-import com.mqtt.tow.entity.ConnectOptions;
 import com.mqtt.tow.server.BootNettyClient;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -15,7 +14,6 @@ public class ClientTwoApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(ClientTwoApplication.class,args);
-//        ConnectOptions connectOptions = new ConnectOptions();
-        new BootNettyClient().init();
+        new BootNettyClient().start();
     }
 }
