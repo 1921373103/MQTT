@@ -1,16 +1,6 @@
 package com.mqtt.tow.entity;
 
 import lombok.Data;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
-
-/**
- * @ Author L
- * @ Date 2021/5/10 15:44
- * @ DESC
- */
-@Component
-@ConfigurationProperties(prefix ="mqtt.client")
 @Data
 public class ConnectOptions {
 
@@ -26,53 +16,73 @@ public class ConnectOptions {
 
     private boolean tcpNodelay = true;
 
-    private int backlog = 1024;
-
-    private  int  sndbuf = 10485760;
-
-    private int revbuf = 10485760;
-
-    private int heart = 60;
-
-    private boolean ssl = false;
-
-    private int bossThread;
-
-    private int workThread;
+    private int workThread = 1;
 
     private MqttOpntions mqtt;
 
-    @Data
-    public static class MqttOpntions{
-
-        private  String clientIdentifier = "1234";
-
-        private  String willTopic = "close";
-
-        private  String willMessage = "bey";
-
-        private  String userName = null;
-
-        private  String password = null;
-
-        private  boolean hasUserName = false;
-
-        private  boolean hasPassword = false;
-
-        private  boolean hasWillRetain = true;
-
-        private  int willQos = 1;
-
-        private  boolean hasWillFlag = true;
-
-        private  boolean hasCleanSession = true;
-
-        private int KeepAliveTime = 10;
-
-
+    public long getConnectTime() {
+        return connectTime;
     }
 
+    public void setConnectTime(long connectTime) {
+        this.connectTime = connectTime;
+    }
 
+    public String getServerIp() {
+        return serverIp;
+    }
+
+    public void setServerIp(String serverIp) {
+        this.serverIp = serverIp;
+    }
+
+    public int getPort() {
+        return port;
+    }
+
+    public void setPort(int port) {
+        this.port = port;
+    }
+
+    public boolean isKeepalive() {
+        return keepalive;
+    }
+
+    public void setKeepalive(boolean keepalive) {
+        this.keepalive = keepalive;
+    }
+
+    public boolean isReuseaddr() {
+        return reuseaddr;
+    }
+
+    public void setReuseaddr(boolean reuseaddr) {
+        this.reuseaddr = reuseaddr;
+    }
+
+    public boolean isTcpNodelay() {
+        return tcpNodelay;
+    }
+
+    public void setTcpNodelay(boolean tcpNodelay) {
+        this.tcpNodelay = tcpNodelay;
+    }
+
+    public int getWorkThread() {
+        return workThread;
+    }
+
+    public void setWorkThread(int workThread) {
+        this.workThread = workThread;
+    }
+
+    public MqttOpntions getMqtt() {
+        return mqtt;
+    }
+
+    public void setMqtt(MqttOpntions mqtt) {
+        this.mqtt = mqtt;
+    }
 
 
 }
