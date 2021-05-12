@@ -4,6 +4,7 @@ import cn.hutool.core.util.RandomUtil;
 import com.mqtt.tow.server.BootNettyClient;
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 /**

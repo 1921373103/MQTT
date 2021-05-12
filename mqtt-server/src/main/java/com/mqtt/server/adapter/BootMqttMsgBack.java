@@ -16,6 +16,7 @@ import io.netty.handler.codec.mqtt.*;
 import io.netty.util.CharsetUtil;
 import io.netty.util.ReferenceCountUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 /**
  * @ Author L
@@ -23,15 +24,19 @@ import lombok.extern.slf4j.Slf4j;
  * @ DESC
  */
 @Slf4j
+@Component
 public class BootMqttMsgBack {
 
     // 消息通道Map
-    private static ConcurrentHashMap ctxMap = new ConcurrentHashMap<String, CtxMessage>();
+    private static ConcurrentHashMap ctxMap = new ConcurrentHashMap<String, CtxMessage>(65536);
 
     // 消息遗嘱Map
-    private static ConcurrentHashMap<String, WillMeaasge> map = new ConcurrentHashMap<String, WillMeaasge>();
+    private static ConcurrentHashMap<String, WillMeaasge> map = new ConcurrentHashMap<String, WillMeaasge>(65536);
 
     public static AtomicInteger atomicInteger = new AtomicInteger(0);
+
+    // 订阅接收数量
+    public static AtomicInteger num = new AtomicInteger(0);
 
 
     /**
@@ -61,10 +66,8 @@ public class BootMqttMsgBack {
         MqttFixedHeader mqttFixedHeaderBack = new MqttFixedHeader(MqttMessageType.CONNACK,mqttFixedHeaderInfo.isDup(), MqttQoS.AT_MOST_ONCE, mqttFixedHeaderInfo.isRetain(), 0x02);
         //	构建CONNACK消息体
         MqttConnAckMessage connAck = new MqttConnAckMessage(mqttFixedHeaderBack, mqttConnAckVariableHeaderBack);
-//        log.info("back--"+connAck.toString());
         channel.writeAndFlush(connAck);
         atomicInteger.getAndIncrement();
-        // buildPublish("连接成功！", "success", 1);
     }
 
     /**
@@ -214,6 +217,7 @@ public class BootMqttMsgBack {
         MqttMessage mqttMessageBack = new MqttMessage(fixedHeader);
 //        log.info("back--"+mqttMessageBack.toString());
         channel.writeAndFlush(mqttMessageBack);
+        num.getAndIncrement();
     }
 
     /**
@@ -241,6 +245,8 @@ public class BootMqttMsgBack {
                 ReferenceCountUtil.retain(msg,1);
                 // 推送消息
                 ctx.writeAndFlush(msg);
+                // 消息接收加1
+                num.getAndIncrement();
             }
         }
         return msg;
@@ -266,7 +272,7 @@ public class BootMqttMsgBack {
     }
 
     /**
-     * 清除ctxMap中所有数据
+     * 清除ctxMap中对应数据
      */
     public static void clearMap(ChannelHandlerContext ctx) {
         String channelId = ctx.channel().id().toString();

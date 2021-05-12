@@ -1,5 +1,6 @@
 package com.mqtt.server.adapter;
 
+import cn.hutool.core.date.DateUtil;
 import com.mqtt.server.entity.CtxMessage;
 import com.mqtt.server.entity.WillMeaasge;
 import io.netty.channel.Channel;
@@ -64,7 +65,7 @@ public class BootChannelInboundHandler extends ChannelInboundHandlerAdapter {
                     //	to do 建议connect消息单独处理，用来对客户端进行认证管理等 这里直接返回一个CONNACK消息
                     // BootMqttMsgBack.doConnectMessage(ctx, msg);
                     BootMqttMsgBack.connack(ctx, mqttMessage);
-                    log.info("num--" + BootMqttMsgBack.atomicInteger);
+                    log.info("num--{}, {}",BootMqttMsgBack.atomicInteger, DateUtil.now());
                 }
 
                 switch (mqttFixedHeader.messageType()){
@@ -99,6 +100,7 @@ public class BootChannelInboundHandler extends ChannelInboundHandlerAdapter {
                         //	在没有任何其它控制报文从客户端发给服务的时，告知服务端客户端还活着
                         //	请求服务端发送 响应确认它还活着，使用网络以确认网络连接没有断开
                         BootMqttMsgBack.pingresp(channel, mqttMessage);
+                        // log.info("pingresp--" + BootMqttMsgBack.num);
                         break;
                     case DISCONNECT:	//	客户端主动断开连接
                         //	DISCONNECT报文是客户端发给服务端的最后一个控制报文， 服务端必须验证所有的保留位都被设置为0

@@ -7,6 +7,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.EnableAsync;
 
 import java.util.concurrent.ThreadPoolExecutor;
 
@@ -16,6 +18,7 @@ import java.util.concurrent.ThreadPoolExecutor;
  * @ DESC
  */
 @SpringBootApplication
+@EnableAsync
 public class ClientTwoApplication implements CommandLineRunner {
 
     @Autowired
@@ -32,12 +35,12 @@ public class ClientTwoApplication implements CommandLineRunner {
     }
 
     @Override
+    @Async
     public void run(String... args) throws Exception {
         for (int i = 1; i <= 100; i++) {
-            // Thread.sleep(400);
-//            threadPoolExecutor.execute(clientTask);
-//            clientTask.run();
-            bootNettyClient.start(RandomUtil.randomString(32));
+//            bootNettyClient.start(RandomUtil.randomString(32));
+            threadPoolExecutor.execute(clientTask);
         }
+
     }
 }
