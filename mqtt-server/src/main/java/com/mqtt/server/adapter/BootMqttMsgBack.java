@@ -152,7 +152,7 @@ public class BootMqttMsgBack {
             ctxMap.put(IdUtil.randomUUID(), ctxMessage);
         }
 //        System.out.println("ctxMap = " + ctxMap);
-        log.info(grantedQoSLevels.toString());
+//        log.info(grantedQoSLevels.toString());
         //	构建返回报文	有效负载
         MqttSubAckPayload payloadBack = new MqttSubAckPayload(grantedQoSLevels);
         //	构建返回报文	固定报头
