@@ -37,10 +37,12 @@ public class ClientTwoApplication implements CommandLineRunner {
     @Override
     @Async
     public void run(String... args) throws Exception {
-        for (int i = 1; i <= 100; i++) {
-//            bootNettyClient.start(RandomUtil.randomString(32));
+        for (int i = 1; i <= 50000; i++) {
             threadPoolExecutor.execute(clientTask);
         }
+//        bootNettyClient.start(RandomUtil.randomString(32));
+//        threadPoolExecutor.execute(clientTask);
+
 
     }
 }

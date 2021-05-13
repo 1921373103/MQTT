@@ -1,5 +1,6 @@
 package com.mqtt.tow.config;
 
+import cn.hutool.core.util.IdUtil;
 import com.mqtt.common.util.ByteBufUtil;
 import com.mqtt.tow.entity.MqttOpntions;
 import io.netty.buffer.ByteBuf;
@@ -11,7 +12,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.stream.Collectors;
 
 /**
  * @ Author L
@@ -39,7 +44,7 @@ public class MqttHander extends ChannelInboundHandlerAdapter {
         MqttOpntions mqtt = new MqttOpntions();
         byte[] willMessage = mqtt.getWillMessage().getBytes();
         byte[] password = mqtt.getPassword().getBytes();
-        log.info("【DefaultMqttHandler：channelActive】"+ctx.channel().localAddress().toString()+"启动成功");
+//        log.info("【DefaultMqttHandler：channelActive】"+ctx.channel().localAddress().toString()+"启动成功");
         MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(MqttMessageType.CONNECT,false, MqttQoS.AT_LEAST_ONCE,false,10);
         MqttConnectVariableHeader mqttConnectVariableHeader = new MqttConnectVariableHeader(MqttVersion.MQTT_3_1_1.protocolName(),MqttVersion.MQTT_3_1_1.protocolLevel(),mqtt.isHasUserName(),mqtt.isHasPassword(),mqtt.isHasWillRetain(),mqtt.getWillQos(),mqtt.isHasWillFlag(),mqtt.isHasCleanSession(),mqtt.getKeepAliveTime());
         MqttConnectPayload mqttConnectPayload = new MqttConnectPayload(mqtt.getClientIdentifier(),mqtt.getWillTopic(),willMessage,mqtt.getUserName(),password);
@@ -50,7 +55,7 @@ public class MqttHander extends ChannelInboundHandlerAdapter {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         MqttMessage mqttMessage = (MqttMessage) msg;
-        log.info("info--" + mqttMessage.toString());
+//        log.info("info--" + mqttMessage.toString());
 
         MqttFixedHeader mqttFixedHeader = mqttMessage.fixedHeader();
         switch (mqttFixedHeader.messageType()){
@@ -76,7 +81,7 @@ public class MqttHander extends ChannelInboundHandlerAdapter {
 //                mqttHandlerApi.pubcomp(channelHandlerContext.channel(),mqttMessage);
                 break;
             case SUBACK:
-//                mqttHandlerApi.suback(channelHandlerContext.channel(),(MqttSubAckMessage)mqttMessage);
+                suback(ctx,mqttMessage);
                 break;
             default:
                 break;
@@ -88,6 +93,30 @@ public class MqttHander extends ChannelInboundHandlerAdapter {
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         cause.printStackTrace();
         ctx.close();
+    }
+
+    /**
+     * 	订阅确认
+     * @param ctx
+     * @param mqttMessage
+     */
+    public void suback(ChannelHandlerContext ctx, MqttMessage mqttMessage) {
+        MqttSubscribeMessage mqttSubscribeMessage = (MqttSubscribeMessage) mqttMessage;
+        MqttMessageIdVariableHeader messageIdVariableHeader = mqttSubscribeMessage.variableHeader();
+        //	构建返回报文， 可变报头
+        MqttMessageIdVariableHeader variableHeaderBack = MqttMessageIdVariableHeader.from(messageIdVariableHeader.messageId());
+        Set<String> topics = mqttSubscribeMessage.payload().topicSubscriptions().stream().map(mqttTopicSubscription -> mqttTopicSubscription.topicName()).collect(Collectors.toSet());
+        List<Integer> grantedQoSLevels = new ArrayList<>(topics.size());
+        for (int i = 0; i < topics.size(); i++) {
+            grantedQoSLevels.add(mqttSubscribeMessage.payload().topicSubscriptions().get(i).qualityOfService().value());
+        }
+        //	构建返回报文	有效负载
+        MqttSubAckPayload payloadBack = new MqttSubAckPayload(grantedQoSLevels);
+        //	构建返回报文	固定报头
+        MqttFixedHeader mqttFixedHeaderBack = new MqttFixedHeader(MqttMessageType.SUBACK, false, MqttQoS.AT_MOST_ONCE, false, 2+topics.size());
+        //	构建返回报文	订阅确认
+        MqttSubAckMessage subAck = new MqttSubAckMessage(mqttFixedHeaderBack,variableHeaderBack, payloadBack);
+        ctx.writeAndFlush(subAck);
     }
 
 }

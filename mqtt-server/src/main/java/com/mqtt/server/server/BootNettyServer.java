@@ -44,7 +44,7 @@ public class BootNettyServer {
             bootstrap.group(bossGroup, workGroup)
                     .channel(NioServerSocketChannel.class)
                     .option(ChannelOption.SO_REUSEADDR, true)
-                    .option(ChannelOption.SO_BACKLOG, 1024 * 1024 * 32)
+                    .option(ChannelOption.SO_BACKLOG, 1024)
                     .option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
                     .option(ChannelOption.SO_RCVBUF, 1024 * 1024 * 32)
                     .childOption(ChannelOption.TCP_NODELAY, true)
@@ -65,6 +65,9 @@ public class BootNettyServer {
 
         } catch (Exception e) {
             System.out.println("start exception"+e.toString());
+        } finally {
+            bossGroup.shutdownGracefully();
+            workGroup.shutdownGracefully();
         }
     }
 

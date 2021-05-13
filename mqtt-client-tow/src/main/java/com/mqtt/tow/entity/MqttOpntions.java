@@ -27,7 +27,7 @@ public class MqttOpntions {
 
         private boolean hasCleanSession = true;
 
-        private int KeepAliveTime = 60;
+        private int KeepAliveTime = 300;
 
         public String getClientIdentifier() {
             return clientIdentifier;

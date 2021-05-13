@@ -3,9 +3,11 @@ package com.mqtt.server.adapter;
 import cn.hutool.core.date.DateUtil;
 import com.mqtt.server.entity.CtxMessage;
 import com.mqtt.server.entity.WillMeaasge;
+import com.mqtt.server.utils.ChannelGroups;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.group.ChannelMatchers;
 import io.netty.handler.codec.mqtt.*;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
@@ -13,6 +15,7 @@ import io.netty.util.AttributeKey;
 import io.netty.util.ReferenceCountUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import sun.plugin2.message.Message;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -45,6 +48,12 @@ public class BootChannelInboundHandler extends ChannelInboundHandlerAdapter {
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         ctx.writeAndFlush("Welcome to " + InetAddress.getLocalHost().getHostName() + "!\r\n");
         ctx.writeAndFlush("It is " + new Date() + " now.\r\n");
+        /*Channel ch = ctx.channel();
+        if (ChannelGroups.size() > 0) {
+            Message msg = new Message(ch.remoteAddress().toString().substring(1), SDF.format(new Date()));
+            ChannelGroups.broadcast(GSON.toJson(msg), new ChannelMatchers());
+        }
+        ChannelGroups.add(ch);*/
         super.channelActive(ctx);
     }
 
